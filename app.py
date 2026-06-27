@@ -11,25 +11,29 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. BBDD MAESTRA CON TICKETS REALES ---
+# --- 2. BBDD MAESTRA ACTUALIZADA (NUEVOS TICKETS) ---
+# Umbrales institucionales ajustados en millones de acciones (M)
 BBDD_TICKETS = {
     "USO": {"threshold_m": 3.5, "name": "Petróleo ($USO)"},
-    "GLD": {"threshold_m": 5.0, "name": "Oro ($GLD)"},
-    "AMD": {"threshold_m": 45.0, "name": "AMD ($AMD)"},
     "IWM": {"threshold_m": 25.0, "name": "Russell 2000 ($IWM)"},
     "QQQ": {"threshold_m": 40.0, "name": "Nasdaq 100 ($QQQ)"},
     "TSLA": {"threshold_m": 70.0, "name": "Tesla ($TSLA)"},
     "AMZN": {"threshold_m": 30.0, "name": "Amazon ($AMZN)"},
-    "NVDA": {"threshold_m": 150.0, "name": "Nvidia ($NVDA)"}
+    "NVDA": {"threshold_m": 150.0, "name": "Nvidia ($NVDA)"},
+    "GOOGL": {"threshold_m": 25.0, "name": "Google ($GOOGL)"},
+    "UBER": {"threshold_m": 20.0, "name": "Uber ($UBER)"},
+    "MSFT": {"threshold_m": 22.0, "name": "Microsoft ($MSFT)"},
+    "AAPL": {"threshold_m": 50.0, "name": "Apple ($AAPL)"}
 }
 
 # --- 3. BARRA LATERAL: CONTROL DE MANDO ---
 st.sidebar.header("🎛️ Configuración del Radar")
 
+# Selector dinámico con los nuevos activos por defecto en la pantalla del móvil
 tickets_seleccionados = st.sidebar.multiselect(
     "Tickets en pantalla:",
     options=list(BBDD_TICKETS.keys()),
-    default=["USO", "AMD", "IWM", "QQQ", "TSLA", "AMZN"]
+    default=["QQQ", "TSLA", "AAPL", "MSFT", "GOOGL", "UBER", "NVDA", "USO"]
 )
 
 segundos_refresco = st.sidebar.slider("Auto-refrescar cada (seg):", min_value=10, max_value=300, value=30)
@@ -49,10 +53,9 @@ def descargar_y_analizar(lista_tickers):
         try:
             t_obj = yf.Ticker(ticker)
             
-            # Necesitamos descargar al menos 5 o 6 días de datos para tener 100 barras de 15m (cada día tiene 26 barras)
+            # Descarga de histórico para cálculo exacto de AVGV100 en 15m
             hist_15m = t_obj.history(period="7d", interval="15m")
             if len(hist_15m) < 100:
-                # Si es un ticket con pocos datos o fin de semana, usamos lo que haya disponible
                 hist_15m = t_obj.history(period="max", interval="15m")
                 
             if hist_15m.empty:
@@ -68,8 +71,8 @@ def descargar_y_analizar(lista_tickers):
             bollinger = "Comprimiendo 🛑" if rango_bandas < 2.0 else "Expandiendo ↕️"
             
             # --- REPLICACIÓN EXACTA FÓRMULA TC2000: 100 * V / AVGV100 ---
-            v_actual = hist_15m['Volume'].iloc[-1] # Volumen de la barra de 15m en curso
-            avgv100 = hist_15m['Volume'].tail(100).mean() # Promedio de las últimas 100 barras de 15m
+            v_actual = hist_15m['Volume'].iloc[-1]
+            avgv100 = hist_15m['Volume'].tail(100).mean()
             
             if avgv100 > 0:
                 fuerza_elefante = int(100 * v_actual / avgv100)
@@ -95,11 +98,11 @@ def descargar_y_analizar(lista_tickers):
 
 # --- 5. EJECUCIÓN DEL RADAR TÁCTICO ---
 if tickets_seleccionados:
-    with st.spinner("Sincronizando con algoritmos institucionales..."):
+    with st.spinner("Actualizando radar de activos de alta prioridad..."):
         datos_actuales = descargar_y_analizar(tickets_seleccionados)
     
     if "USO" in datos_actuales and datos_actuales["USO"]["precio"] >= 123.00:
-        st.error(f"🚨 **ALERTA YUNQUE TRIGERED:** $USO está en ${datos_actuales['USO']['precio']:.2f}. ¡Tecnológicas bajo presión extrema!")
+        st.error(f"🚨 **ALERTA YUNQUE TRIGGERED:** $USO está en ${datos_actuales['USO']['precio']:.2f}. ¡Tecnológicas bajo presión extrema!")
 
     tabla_radar = []
     for ticker in tickets_seleccionados:
@@ -113,7 +116,7 @@ if tickets_seleccionados:
         
         umbral_ajustado = umbral_m * 0.15 if datos_actuales[ticker]["en_apertura"] else umbral_m
 
-        # Sistema de alertas acoplado a tu indicador TC2000
+        # Sistema de alertas G-STATION
         if bandas == "Comprimiendo 🛑" and (vol_m >= umbral_ajustado or fuerza >= 140):
             estado = "⚠️ EXHAUSTION (No Entry)"
         elif fuerza >= 300 or vol_m >= umbral_ajustado:
@@ -123,7 +126,7 @@ if tickets_seleccionados:
         else:
             estado = "🔵 Azul (Retail)"
             
-        # Formato visual adaptado
+        # Marcadores visuales de fuerza (TC2000 Scale)
         if fuerza >= 300:
             fuerza_str = f"🔥 {fuerza}"
         elif fuerza >= 200:
@@ -158,7 +161,7 @@ if tickets_seleccionados:
     
     st.subheader("📊 Radar de Elefantes")
     st.dataframe(df_styled, use_container_width=True, hide_index=True)
-    st.caption(f"Fórmula TC2000 en uso: 100 * V / AVGV100 (15m). Sincronización completa.")
+    st.caption(f"Fórmula TC2000: 100 * V / AVGV100 (15m). Monitorizando FAANG + UBER.")
 
 # --- 6. AUTO-REFRESCO OPTIMIZADO PARA MÓVIL ---
 st.fragment(run_every=segundos_refresco)(lambda: st.rerun())()
